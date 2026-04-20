@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="he" dir="rtl" style="direction:rtl">
 <head>
@@ -133,6 +134,16 @@ input[type=file].hf{position:absolute;width:1px;height:1px;opacity:0;pointer-eve
 </style>
 </head>
 <body>
+<!-- LOGIN SCREEN -->
+<div id="login-screen" style="position:fixed;inset:0;background:var(--color-background-primary);z-index:999999;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:2rem">
+  <div style="font-size:40px">🏗️</div>
+  <div style="font-size:22px;font-weight:700;color:var(--color-text-primary)">יומן קבלן</div>
+  <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:8px">הזן קוד גישה להמשך</div>
+  <input type="password" id="login-code" maxlength="20" placeholder="קוד גישה..." style="height:44px;width:220px;padding:0 14px;border:1.5px solid var(--color-border-secondary);border-radius:10px;font-size:16px;background:var(--color-background-primary);color:var(--color-text-primary);font-family:inherit;text-align:center;letter-spacing:3px" onkeydown="if(event.key==='Enter')doLogin()">
+  <button onclick="doLogin()" style="height:44px;width:220px;background:#E8870A;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">כניסה</button>
+  <div id="login-err" style="font-size:13px;color:#A32D2D;display:none">קוד שגוי, נסה שוב</div>
+</div>
+
 <div class="db-overlay" id="db-overlay">
   <div class="spinner"></div>
   <div style="font-size:14px;color:var(--color-text-secondary)">מתחבר למסד הנתונים...</div>
@@ -184,7 +195,7 @@ input[type=file].hf{position:absolute;width:1px;height:1px;opacity:0;pointer-eve
     <div id="entries-container"></div>
   </div>
 </div>
-<div id="sec-report" class="section"><div class="month-sel"><label>📅 חודש:</label><input type="month" id="report-month" oninput="renderReport()"></div><div id="report-container"></div></div>
+<div id="sec-report" class="section"><div class="month-sel"><label>📅 חודש:</label><input type="month" id="report-month" oninput="renderReport()"><button class="btn" onclick="exportCSV()" style="margin-right:auto;background:rgba(29,158,117,.1);color:#0a4a33;border-color:rgba(29,158,117,.3)">⬇️ ייצוא Excel</button></div><div id="report-container"></div></div>
 <div id="sec-settings" class="section">
   <div class="card">
     <div class="card-title">👷 עובדים</div>
@@ -198,6 +209,7 @@ input[type=file].hf{position:absolute;width:1px;height:1px;opacity:0;pointer-eve
   </div>
   <div class="card"><div class="card-title">🏢 אתרי עבודה</div><div class="row"><div class="field"><label>שם האתר / פרויקט</label><input type="text" id="ns-name" placeholder="שם האתר"></div><div class="field"><label>עלות יעד (₪)</label><input type="number" id="ns-budget" placeholder="0" min="0"></div><button class="btn accent" onclick="addSite()" style="align-self:flex-end">הוסף</button></div><div id="sites-list" class="tag-list"></div></div>
   <div class="card"><div class="card-title">🔑 שינוי קוד אדמין</div><div class="row"><div class="field"><label>קוד חדש</label><input type="password" id="new-pin" placeholder="4-6 ספרות" maxlength="6"></div><button class="btn" onclick="changePin()" style="align-self:flex-end">עדכן קוד</button></div></div>
+  <div class="card"><div class="card-title">🔐 קוד גישה למשתמשים</div><div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">הקוד שמנהל העבודה מזין בכניסה לאפליקציה</div><div class="row"><div class="field"><label>קוד גישה חדש</label><input type="password" id="new-access-code" placeholder="קוד לעובדים" maxlength="20"></div><button class="btn" onclick="changeAccessCode()" style="align-self:flex-end">עדכן</button></div></div>
 </div>
 </div>
 <div class="wheel-popup" id="wheel-popup">
@@ -226,7 +238,12 @@ const wc={start:false,end:false};
 let activeWId=null;
 const eFromDb=e=>({id:e.id,date:e.date,worker:e.worker_name,site:e.site_name,start:e.start_time,end:e.end_time,note:e.note||'',sites:JSON.parse(e.sites_list||'[]'),hoursShare:e.hours_share||0,totalH:e.total_h||0});
 const eToDb=e=>({id:e.id,date:e.date,worker_name:e.worker,site_name:e.site,start_time:e.start,end_time:e.end,note:e.note||'',sites_list:JSON.stringify(e.sites||[]),hours_share:e.hoursShare||0,total_h:e.totalH||0});
-async function loadAll(){try{const[workers,sites,rawEntries,settings]=await Promise.all([sGet('workers','&order=created_at.asc'),sGet('sites','&order=created_at.asc'),sGet('entries','&order=date.asc,start_time.asc'),sGet('app_settings')]);state.workers=workers;state.sites=sites;state.entries=rawEntries.map(eFromDb);const ps=settings.find(s=>s.key==='pin');state.pin=ps?ps.value:'1234';document.getElementById('db-dot').classList.add('on');document.getElementById('db-status').textContent='מחובר';}catch(e){document.getElementById('db-err-msg').textContent=e.message;document.getElementById('db-err').classList.add('show');return;}document.getElementById('db-overlay').classList.add('hide');document.getElementById('main-app').style.display='';const today=new Date().toISOString().split('T')[0];document.getElementById('log-date').value=today;document.getElementById('log-date').max=today;document.getElementById('filter-date').max=today;document.getElementById('report-month').value=today.slice(0,7);buildDrums();spBuild();refreshWorkerSelects();renderWorkerGrid();renderSitesList();renderEntries();renderReport();}
+async function loadAll(){try{const[workers,sites,rawEntries,settings]=await Promise.all([sGet('workers','&order=created_at.asc'),sGet('sites','&order=created_at.asc'),sGet('entries','&order=date.asc,start_time.asc'),sGet('app_settings')]);state.workers=workers;state.sites=sites;state.entries=rawEntries.map(eFromDb);const ps=settings.find(s=>s.key==='pin');state.pin=ps?ps.value:'1234';const ac=settings.find(s=>s.key==='access_code');state.accessCode=ac?ac.value:'';document.getElementById('db-dot').classList.add('on');document.getElementById('db-status').textContent='מחובר';}catch(e){document.getElementById('db-err-msg').textContent=e.message;document.getElementById('db-err').classList.add('show');return;}document.getElementById('db-overlay').classList.add('hide');document.getElementById('main-app').style.display='';
+  if(state.accessCode&&!sessionStorage.getItem('loggedIn')){
+    document.getElementById('login-screen').style.display='flex';
+    setTimeout(()=>document.getElementById('login-code').focus(),100);
+  }
+  const today=new Date().toISOString().split('T')[0];document.getElementById('log-date').value=today;document.getElementById('log-date').max=today;document.getElementById('filter-date').max=today;document.getElementById('report-month').value=today.slice(0,7);buildDrums();spBuild();refreshWorkerSelects();renderWorkerGrid();renderSitesList();renderEntries();renderReport();}
 function showConfirm(icon,msg){return new Promise(res=>{document.getElementById('confirm-icon').textContent=icon;document.getElementById('confirm-msg').textContent=msg;document.getElementById('confirm-bg').classList.add('open');const y=document.getElementById('confirm-yes'),n=document.getElementById('confirm-no');const done=r=>{document.getElementById('confirm-bg').classList.remove('open');y.onclick=null;n.onclick=null;res(r);};y.onclick=()=>done(true);n.onclick=()=>done(false);});}
 async function onDateChange(el){if(new Date(el.value+'T12:00:00').getDay()===6){const ok=await showConfirm('🕍','האם אתה בטוח כי ברצונך לרשום שעות על יום שבת?');if(!ok)el.value='';}}
 function toggleAdmin(){if(isAdmin){isAdmin=false;updateAdminUI();return;}const p=document.getElementById('pin-panel');p.classList.toggle('show');if(p.classList.contains('show'))document.getElementById('pin-input').focus();}
@@ -239,7 +256,26 @@ function spSyncChecks(){document.querySelectorAll('#sp-dd .sp-item').forEach(el=
 function spRenderChips(){const box=document.getElementById('sp-box'),ph=document.getElementById('sp-ph');box.querySelectorAll('.sp-chip').forEach(c=>c.remove());if(!selSites.length){ph.style.display='';document.getElementById('split-note').textContent='';return;}ph.style.display='none';selSites.forEach(name=>{const chip=document.createElement('span');chip.className='sp-chip';chip.textContent=name+' ×';chip.dataset.site=name;box.appendChild(chip);});document.getElementById('split-note').textContent=selSites.length>1?`השעות יחולקו שווה בשווה בין ${selSites.length} האתרים`:'';}
 document.getElementById('sp-box').addEventListener('click',e=>{e.stopPropagation();const chip=e.target.closest('.sp-chip');if(chip){selSites=selSites.filter(s=>s!==chip.dataset.site);spSyncChecks();return;}closeWheel();document.getElementById('sp-dd').classList.toggle('open');});
 document.addEventListener('click',e=>{if(!document.getElementById('sp-wrap').contains(e.target))document.getElementById('sp-dd').classList.remove('open');if(!document.getElementById('wheel-popup').contains(e.target)&&!document.getElementById('wrap-start').contains(e.target)&&!document.getElementById('wrap-end').contains(e.target))closeWheel();});
-function buildDrums(){const dh=document.getElementById('drum-h'),dm=document.getElementById('drum-m');dh.innerHTML='<div class="drum-item" style="height:60px"></div>'+HOURS.map(h=>`<div class="drum-item" data-v="${h}">${h}</div>`).join('')+'<div class="drum-item" style="height:60px"></div>';dm.innerHTML='<div class="drum-item" style="height:60px"></div>'+MINS.map(m=>`<div class="drum-item" data-v="${m}">${m}</div>`).join('')+'<div class="drum-item" style="height:60px"></div>';dh.addEventListener('scroll',()=>onDS(dh,'h'));dm.addEventListener('scroll',()=>onDS(dm,'m'));document.getElementById('wheel-done-btn').onclick=()=>{if(activeWId)confirmW(activeWId);};}
+function buildDrums(){
+  const dh=document.getElementById('drum-h'),dm=document.getElementById('drum-m');
+  dh.innerHTML='<div class="drum-item" style="height:60px"></div>'+HOURS.map(h=>`<div class="drum-item" data-v="${h}">${h}</div>`).join('')+'<div class="drum-item" style="height:60px"></div>';
+  dm.innerHTML='<div class="drum-item" style="height:60px"></div>'+MINS.map(m=>`<div class="drum-item" data-v="${m}">${m}</div>`).join('')+'<div class="drum-item" style="height:60px"></div>';
+  dh.addEventListener('scroll',()=>onDS(dh,'h'));
+  dm.addEventListener('scroll',()=>onDS(dm,'m'));
+  /* Fix: mouse wheel scrolls exactly one item (40px) at a time — no more jumping */
+  function addWheelControl(drum){
+    drum.addEventListener('wheel',e=>{
+      e.preventDefault();
+      clearTimeout(drum._wt);
+      drum._wt=setTimeout(()=>{
+        const step=e.deltaY>0?40:-40;
+        drum.scrollTop+=step;
+      },16);
+    },{passive:false});
+  }
+  addWheelControl(dh);addWheelControl(dm);
+  document.getElementById('wheel-done-btn').onclick=()=>{if(activeWId)confirmW(activeWId);};
+}
 function svt(drum,val){const el=[...drum.querySelectorAll('[data-v]')].find(x=>x.dataset.v===val);if(el)drum.scrollTop=el.offsetTop-60;setTimeout(()=>hlc(drum),40);}
 function onDS(drum,type){clearTimeout(drum._t);drum._t=setTimeout(()=>{const c=drum.scrollTop+80;let best=null,bd=999;[...drum.querySelectorAll('[data-v]')].forEach(el=>{const d=Math.abs(el.offsetTop-c+20);if(d<bd){bd=d;best=el;}});if(best&&activeWId){drum.scrollTop=best.offsetTop-60;wv[activeWId][type]=best.dataset.v;hlc(drum);}},80);}
 function hlc(drum){const c=drum.scrollTop+80;drum.querySelectorAll('[data-v]').forEach(el=>el.classList.toggle('sel',Math.abs(el.offsetTop-c+20)<22));}
@@ -272,6 +308,46 @@ function wMini(name){const i=state.workers.findIndex(w=>w.name===name);const col
 function renderEntries(){const fd=document.getElementById('filter-date').value;const entries=fd?state.entries.filter(e=>e.date===fd):state.entries;const c=document.getElementById('entries-container');if(!entries.length){c.innerHTML=`<p class="empty">אין רשומות${fd?' לתאריך זה':''}</p>`;return;}const grouped={};entries.forEach(e=>{(grouped[e.date]=grouped[e.date]||[]).push(e);});let html='';Object.keys(grouped).sort((a,b)=>b.localeCompare(a)).forEach(date=>{const d=new Date(date+'T12:00:00'),shab=d.getDay()===6;html+=`<div class="date-header">${shab?'🕍 ':''}${d.toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long'})}${shab?' — שבת':''}</div>`;html+='<table class="entries-table"><thead><tr><th>עובד</th><th>אתר</th><th>כניסה</th><th>יציאה</th><th>שעות</th><th>הערה</th><th></th></tr></thead><tbody>';grouped[date].forEach(e=>{const h=e.hoursShare||calcH(e.start,e.end);const multi=e.sites&&e.sites.length>1?`<span style="font-size:10px;color:var(--color-text-tertiary);display:block">÷${e.sites.length}</span>`:'';html+=`<tr><td><div class="worker-mini">${wMini(e.worker)}<span>${e.worker}</span></div></td><td>${e.site}${multi}</td><td>${e.start}</td><td>${e.end}</td><td><span class="hours-badge">${h.toFixed(2)}ש'</span></td><td style="font-size:12px;color:var(--color-text-tertiary)">${e.note||'—'}</td><td style="white-space:nowrap"><button class="btn sm" onclick="openEditEntry('${e.id}')">✏️</button> <button class="btn sm danger" onclick="rmEntry('${e.id}')">✕</button></td></tr>`;});html+='</tbody></table>';});c.innerHTML=html;}
 function renderReport(){const month=document.getElementById('report-month').value;const c=document.getElementById('report-container');if(!month){c.innerHTML='<p class="empty">בחר חודש</p>';return;}const entries=state.entries.filter(e=>e.date.startsWith(month));if(!entries.length){c.innerHTML='<p class="empty">אין רשומות לחודש זה</p>';return;}const seen=new Set(),byWorker={};entries.forEach(e=>{const key=`${e.worker}|${e.date}|${e.start}|${e.end}`;if(!byWorker[e.worker])byWorker[e.worker]={hours:0,days:new Set()};if(!seen.has(key)){byWorker[e.worker].hours+=calcH(e.start,e.end);seen.add(key);}byWorker[e.worker].days.add(e.date);});const bySite={};entries.forEach(e=>{if(!bySite[e.site])bySite[e.site]={hours:0,days:new Set(),workers:new Set()};bySite[e.site].hours+=(e.hoursShare||calcH(e.start,e.end));bySite[e.site].days.add(e.date);bySite[e.site].workers.add(e.worker);});const totalH=Object.values(byWorker).reduce((s,d)=>s+d.hours,0);const totalDays=new Set(entries.map(e=>e.date)).size;const totalSalary=Object.entries(byWorker).reduce((s,[n,d])=>{const w=state.workers.find(x=>x.name===n);return s+(w?w.rate*d.hours:0);},0);const mn=new Date(month+'-01').toLocaleDateString('he-IL',{month:'long',year:'numeric'});let html=`<p style="font-size:17px;font-weight:700;margin-bottom:1rem;color:var(--color-text-primary)">${mn}</p>`;html+=`<div class="metric-grid"><div class="metric m-orange"><div class="m-label">שעות עבודה</div><div class="m-val">${totalH.toFixed(2)}</div></div><div class="metric m-blue"><div class="m-label">ימי עבודה</div><div class="m-val">${totalDays}</div></div><div class="metric m-purple"><div class="m-label">עובדים</div><div class="m-val">${Object.keys(byWorker).length}</div></div><div class="metric m-green"><div class="m-label">עלות שכר</div><div class="m-val">${Math.round(totalSalary).toLocaleString()}<span style="font-size:14px">₪</span></div></div></div>`;html+='<div class="rep-section">פירוט לפי עובד — משכורות</div><div style="display:flex;flex-direction:column;gap:8px;margin-bottom:1rem">';Object.entries(byWorker).sort((a,b)=>b[1].hours-a[1].hours).forEach(([name,d])=>{const wi=state.workers.findIndex(x=>x.name===name);const w=state.workers[wi];const col=wi>=0?wColor(wi):'#888';const salary=w?Math.round(w.rate*d.hours):0;const ph=w&&w.photo?`<img src="${w.photo}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid ${col}">`:`<div style="width:36px;height:36px;border-radius:50%;background:${col};display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;flex-shrink:0">${wInit(name)}</div>`;html+=`<div class="rep-row" style="border-right:4px solid ${col}">${ph}<div style="flex:1"><div style="font-size:13px;font-weight:600">${name}</div><div style="font-size:11px;color:var(--color-text-tertiary)">${d.hours.toFixed(2)} שעות • ${d.days.size} ימים${w?` • ${w.rate}₪/ש'`:''}</div></div><div style="font-size:15px;font-weight:700;color:${col}">${salary.toLocaleString()}₪</div></div>`;});html+='</div><div class="rep-section">פירוט לפי אתר — רווחיות</div><div style="display:flex;flex-direction:column;gap:8px">';const siteCosts={};Object.keys(bySite).forEach(site=>{siteCosts[site]=entries.filter(e=>e.site===site).reduce((s,e)=>{const w=state.workers.find(x=>x.name===e.worker);return s+(w?w.rate*(e.hoursShare||calcH(e.start,e.end)):0);},0);});const maxC=Math.max(...Object.values(siteCosts),1);Object.entries(bySite).sort((a,b)=>siteCosts[b[0]]-siteCosts[a[0]]).forEach(([name,d],si)=>{const cost=siteCosts[name];const sO=state.sites.find(s=>s.name===name);const budget=sO?sO.budget:0;const pct=budget?Math.round(cost/budget*100):null;const bc=pct===null?COLORS[si%COLORS.length]:pct>90?'#E24B4A':pct>70?'#EF9F27':'#1D9E75';const bw=Math.min(100,Math.round(cost/maxC*100));html+=`<div class="rep-row" style="border-right:4px solid ${COLORS[si%COLORS.length]}"><div style="flex:1;min-width:100px"><div style="font-size:13px;font-weight:600">🏢 ${name}</div><div style="font-size:11px;color:var(--color-text-tertiary);margin-bottom:6px">${d.hours.toFixed(2)} שעות • ${d.days.size} ימים • ${d.workers.size} עובדים</div><div class="bar-wrap"><div class="bar" style="width:${bw}%;background:${bc}"></div></div></div><div style="text-align:left;flex-shrink:0"><div style="font-size:15px;font-weight:700;color:${bc}">${Math.round(cost).toLocaleString()}₪</div>${pct!==null?`<div style="font-size:11px;color:var(--color-text-tertiary)">${pct}% מהיעד</div>`:''}</div></div>`;});html+='</div>';c.innerHTML=html;}
 async function changePin(){const np=document.getElementById('new-pin').value.trim();if(np.length<4){alert('קוד חייב להיות לפחות 4 ספרות');return;}try{await sUps('app_settings',{key:'pin',value:np});state.pin=np;document.getElementById('new-pin').value='';alert('הקוד עודכן!');}catch(e){alert('שגיאה: '+e.message);}}
+
+async function changeAccessCode(){
+  const nc=document.getElementById('new-access-code').value.trim();
+  if(!nc){alert('נא להזין קוד');return;}
+  try{await sUps('app_settings',{key:'access_code',value:nc});state.accessCode=nc;document.getElementById('new-access-code').value='';alert('קוד הגישה עודכן! שלח אותו למנהל העבודה.');}
+  catch(e){alert('שגיאה: '+e.message);}
+}
+
+function doLogin(){
+  const code=document.getElementById('login-code').value.trim();
+  const err=document.getElementById('login-err');
+  if(!state.accessCode||code===state.accessCode||code===state.pin){
+    document.getElementById('login-screen').style.display='none';
+    sessionStorage.setItem('loggedIn','1');
+    err.style.display='none';
+  } else {
+    err.style.display='block';
+    document.getElementById('login-code').value='';
+    setTimeout(()=>err.style.display='none',2000);
+  }
+}
+
+function exportCSV(){
+  const month=document.getElementById('report-month').value;
+  const entries=month?state.entries.filter(e=>e.date.startsWith(month)):state.entries;
+  if(!entries.length){alert('אין רשומות לייצוא');return;}
+  const seen=new Set();
+  const rows=[['תאריך','עובד','אתר','כניסה','יציאה','שעות','הערה']];
+  entries.forEach(e=>{
+    const key=`${e.id}`;
+    if(seen.has(key))return;seen.add(key);
+    rows.push([e.date,e.worker,e.site,e.start,e.end,(e.hoursShare||calcH(e.start,e.end)).toFixed(2),e.note||'']);
+  });
+  const csv='\uFEFF'+rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download=`יומן_${month||'כולל'}.csv`;
+  a.click();
+}
+
 loadAll();
 </script>
 </body>
