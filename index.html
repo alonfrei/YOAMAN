@@ -223,7 +223,7 @@ input[type=file].hf{position:absolute;width:1px;height:1px;opacity:0;pointer-eve
 const SB='https://nrxgrjskqemsurmobllj.supabase.co/rest/v1';
 const SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5yeGdyanNrcWVtc3VybW9ibGxqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2MDc2MDIsImV4cCI6MjA5MjE4MzYwMn0.-ubhfJe_z5g9sNB8zcc8Db6cguSzxBKfRWUxXuDWdO0';
 const SH=(x={})=>({'apikey':SK,'Authorization':'Bearer '+SK,'Content-Type':'application/json',...x});
-async function sGet(t,q=''){const r=await fetch(`${SB}/${t}?select=*${q}`,{headers:SH()});if(!r.ok)throw new Error(await r.text());return r.json();}
+async function sGet(t,q=''){const all=[];const PAGE=1000;for(let from=0;;from+=PAGE){const r=await fetch(`${SB}/${t}?select=*${q}&limit=${PAGE}&offset=${from}`,{headers:SH()});if(!r.ok)throw new Error(await r.text());const rows=await r.json();all.push(...rows);if(rows.length<PAGE)break;}return all;}
 async function sIns(t,d){const r=await fetch(`${SB}/${t}`,{method:'POST',headers:SH({'Prefer':'return=representation'}),body:JSON.stringify(d)});if(!r.ok)throw new Error(await r.text());return r.json();}
 async function sUpd(t,q,d){const r=await fetch(`${SB}/${t}?${q}`,{method:'PATCH',headers:SH({'Prefer':'return=representation'}),body:JSON.stringify(d)});if(!r.ok)throw new Error(await r.text());return r.status===204?null:r.json();}
 async function sDel(t,q){const r=await fetch(`${SB}/${t}?${q}`,{method:'DELETE',headers:SH()});if(!r.ok)throw new Error(await r.text());}
